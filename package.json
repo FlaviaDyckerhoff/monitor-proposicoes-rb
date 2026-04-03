@@ -1,0 +1,12 @@
+{
+  "name": "monitor-proposicoes-rb",
+  "version": "1.0.0",
+  "description": "Monitor de matérias legislativas — Câmara Municipal de Rio Branco/AC",
+  "main": "monitor.js",
+  "scripts": {
+    "start": "node monitor.js"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.0"
+  }
+}

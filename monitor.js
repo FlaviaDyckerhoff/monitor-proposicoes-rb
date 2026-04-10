@@ -5,7 +5,7 @@ const EMAIL_DESTINO = process.env.EMAIL_DESTINO;
 const EMAIL_REMETENTE = process.env.EMAIL_REMETENTE;
 const EMAIL_SENHA = process.env.EMAIL_SENHA;
 const ARQUIVO_ESTADO = 'estado.json';
-const API_BASE = 'https://sapl.riobranco.ac.leg.br';
+const API_BASE = 'http://sapl.riobranco.ac.leg.br';
 
 function carregarEstado() {
   if (fs.existsSync(ARQUIVO_ESTADO)) {

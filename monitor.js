@@ -6,6 +6,7 @@ const EMAIL_REMETENTE = process.env.EMAIL_REMETENTE;
 const EMAIL_SENHA = process.env.EMAIL_SENHA;
 const ARQUIVO_ESTADO = 'estado.json';
 const API_BASE = 'http://sapl.riobranco.ac.leg.br';
+const MATERIA_BASE = 'https://sapl.riobranco.ac.leg.br/materia';
 
 function carregarEstado() {
   if (fs.existsSync(ARQUIVO_ESTADO)) {
@@ -37,7 +38,7 @@ async function enviarEmail(novas) {
     const rows = porTipo[tipo].map(p =>
       `<tr>
         <td style="padding:8px;border-bottom:1px solid #eee;color:#555;font-size:12px">${p.tipo || '-'}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee"><strong>${p.numero || '-'}/${p.ano || '-'}</strong></td>
+        <td style="padding:8px;border-bottom:1px solid #eee"><a href="${p.link}" style="color:#1a3a5c;text-decoration:none"><strong>${p.numero || '-'}/${p.ano || '-'}</strong></a></td>
         <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px">${p.autor || '-'}</td>
         <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px;white-space:nowrap">${p.data || '-'}</td>
         <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px">${p.ementa || '-'}</td>
@@ -73,7 +74,7 @@ async function enviarEmail(novas) {
   await transporter.sendMail({
     from: `"Monitor CMRB" <${EMAIL_REMETENTE}>`,
     to: EMAIL_DESTINO,
-    subject: `🏛️ CMRB: ${novas.length} nova(s) matéria(s) — ${new Date().toLocaleDateString('pt-BR')}`,
+    subject: `🏛️ Rio Branco: ${novas.length} nova(s) matéria(s) — ${new Date().toLocaleDateString('pt-BR')}`,
     html,
   });
 
@@ -130,6 +131,7 @@ function normalizarProposicao(p) {
     tipo,
     numero: String(p.numero || '-'),
     ano: String(p.ano || '-'),
+    link: `${MATERIA_BASE}/${gerarId(p)}`,
     autor: '-', // SAPL não retorna autor inline; evitar chamada extra por item
     data: p.data_apresentacao || p.data || '-',
     ementa: (p.ementa || p.descricao || '-').substring(0, 200),

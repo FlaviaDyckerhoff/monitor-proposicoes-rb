@@ -4,7 +4,9 @@ const nodemailer = require('nodemailer');
 const EMAIL_DESTINO = process.env.EMAIL_DESTINO;
 const EMAIL_REMETENTE = process.env.EMAIL_REMETENTE;
 const EMAIL_SENHA = process.env.EMAIL_SENHA;
-const ARQUIVO_ESTADO = 'estado.json';
+const ARQUIVO_ESTADO = process.env.ARQUIVO_ESTADO || 'estado.json';
+const RADAR03_URL = process.env.RADAR03_URL || 'https://doe.monitorlegislativo.com.br/controle03/';
+const CASA_RADAR03 = process.env.CASA_RADAR03 || 'AC - Rio Branco';
 const API_BASE = 'http://sapl.riobranco.ac.leg.br';
 const MATERIA_BASE = 'https://sapl.riobranco.ac.leg.br/materia';
 
@@ -39,7 +41,92 @@ function compararTiposEmail(a, b) {
   return String(a || '').localeCompare(String(b || ''), 'pt-BR');
 }
 
+function radar03TipoControle(tipo) {
+  const normal = String(tipo || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toUpperCase()
+    .replace(/\s+/g, ' ')
+    .trim();
+  const mapa = {
+    'PROJETO DE LEI': 'PL',
+    'PROJETO DE LEI ORDINARIA': 'PLO',
+    'PROJETO DE LEI COMPLEMENTAR': 'PLC',
+    'PROPOSTA DE EMENDA A LEI ORGANICA': 'PELO',
+    'PROJETO DE DECRETO LEGISLATIVO': 'PDL',
+    'PROJETO DE RESOLUCAO': 'PR',
+    'REQUERIMENTO': 'REQ',
+    'REQUERIMENTO DE INFORMACAO': 'REQINF',
+    'REQUERIMENTO DE INFORMACOES': 'REQINF',
+    'INDICACAO': 'IND',
+    'MOCAO': 'MOC',
+    'VETO': 'VT',
+  };
+  return mapa[normal] || normal || String(tipo || '').trim().toUpperCase();
+}
+
+function radar03AgruparNovidades(novas) {
+  const porTipo = new Map();
+  (novas || []).forEach(p => {
+    const tipo = radar03TipoControle(p?.tipo || '');
+    const numero = String(p?.numero || '').trim();
+    const numeroInt = Number.parseInt(numero, 10);
+    if (!tipo || !Number.isFinite(numeroInt)) return;
+    const atual = porTipo.get(tipo);
+    if (!atual || numeroInt > atual.numeroInt) {
+      porTipo.set(tipo, { tipo, numero, numeroInt, ano: String(p?.ano || '').trim() });
+    }
+  });
+  return Array.from(porTipo.values());
+}
+
+function radar03BlocoEmail(novas) {
+  return radar03AgruparNovidades(novas)
+    .map(item => item.tipo + ' ' + item.numero + (item.ano ? '/' + item.ano : ''))
+    .join(' | ');
+}
+
+function radar03PrimeiraFonte(novas) {
+  const item = (novas || []).find(p => p?.link);
+  return item ? String(item.link || '') : '';
+}
+
+function radar03ReviewUrl(novas) {
+  const params = new URLSearchParams({
+    casa: CASA_RADAR03,
+    bloco: radar03BlocoEmail(novas),
+    fonte: radar03PrimeiraFonte(novas),
+  });
+  return RADAR03_URL + '?' + params.toString();
+}
+
+function radar03Escape(valor) {
+  return String(valor ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
+function renderRadar03EmailButton(novas) {
+  const bloco = radar03BlocoEmail(novas);
+  if (!bloco) return '';
+  return '<div style="background:#ecfdf3;border:1px solid #bbf7d0;border-radius:6px;padding:12px 14px;margin:14px 0;color:#14532d;font-size:13px">' +
+    '<div style="font-weight:bold;margin-bottom:6px">Radar 03 | Novas Proposições</div>' +
+    '<div style="margin-bottom:9px;color:#166534">' + radar03Escape(CASA_RADAR03) + ' · ' + radar03Escape(bloco) + '</div>' +
+    '<a href="' + radar03Escape(radar03ReviewUrl(novas)) + '" style="display:inline-block;background:#166534;color:white;text-decoration:none;border-radius:4px;padding:8px 11px;font-size:12px;font-weight:bold">Revisar no Radar 03</a>' +
+    '<span style="font-size:12px;color:#64748b;margin-left:8px">abre preenchido para confirmação</span>' +
+    '</div>';
+}
+
 async function enviarEmail(novas) {
+  if (process.env.DRY_RUN_EMAIL === '1') {
+    console.log('[DRY_RUN_EMAIL] Bloco Controle 03: ' + radar03BlocoEmail(novas));
+    console.log(renderRadar03EmailButton(novas));
+    return;
+  }
+
   const transporter = nodemailer.createTransport({
     service: 'gmail',
     auth: { user: EMAIL_REMETENTE, pass: EMAIL_SENHA },
@@ -73,6 +160,7 @@ async function enviarEmail(novas) {
         🏛️ Câmara de Rio Branco/AC — ${novas.length} nova(s) matéria(s) legislativa(s)
       </h2>
       <p style="color:#666">Monitoramento automático — ${new Date().toLocaleString('pt-BR')}</p>
+      ${renderRadar03EmailButton(novas)}
       <table style="width:100%;border-collapse:collapse;font-size:14px">
         <thead>
           <tr style="background:#1a3a5c;color:white">
@@ -186,6 +274,10 @@ function normalizarProposicao(p) {
       return (parseInt(b.numero) || 0) - (parseInt(a.numero) || 0);
     });
     await enviarEmail(novas);
+    if (process.env.DRY_RUN_EMAIL === '1') {
+      console.log('🧪 DRY_RUN_EMAIL=1: estado local preservado.');
+      process.exit(0);
+    }
     novas.forEach(p => idsVistos.add(p.id));
     estado.proposicoes_vistas = Array.from(idsVistos);
     estado.ultima_execucao = new Date().toISOString();

@@ -202,10 +202,8 @@ async function buscarProposicoes() {
   });
 
   if (!response.ok) {
-    console.error(`❌ Erro na API: ${response.status} ${response.statusText}`);
     const texto = await response.text();
-    console.error('Resposta:', texto.substring(0, 300));
-    return [];
+    throw new Error(`Erro na API: ${response.status} ${response.statusText}; resposta: ${texto.substring(0, 300)}`);
   }
 
   const json = await response.json();

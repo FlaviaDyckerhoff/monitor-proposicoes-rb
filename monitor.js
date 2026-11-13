@@ -1,3 +1,5 @@
+const mlPropsPriority = require('./priority_terms');
+
 const fs = require('fs');
 const nodemailer = require('nodemailer');
 
@@ -148,7 +150,7 @@ async function enviarEmail(novas) {
         <td style="padding:8px;border-bottom:1px solid #eee"><a href="${p.link}" style="color:#1a3a5c;text-decoration:none"><strong>${p.numero || '-'}/${p.ano || '-'}</strong></a></td>
         <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px">${p.autor || '-'}</td>
         <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px;white-space:nowrap">${p.data || '-'}</td>
-        <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px">${p.ementa || '-'}</td>
+        <td style="padding:8px;border-bottom:1px solid #eee;font-size:12px">${mlPropsPriority.priorityEmenta(mlPropsPriority.escapeHtml(p.ementa || '-'), p)}</td>
       </tr>`
     ).join('');
     return header + rows;
@@ -182,7 +184,7 @@ async function enviarEmail(novas) {
   await transporter.sendMail({
     from: `"Monitor CMRB" <${EMAIL_REMETENTE}>`,
     to: EMAIL_DESTINO,
-    subject: `🏛️ Rio Branco: ${novas.length} nova(s) matéria(s) — ${new Date().toLocaleDateString('pt-BR')}`,
+    subject: mlPropsPriority.prioritySubject(novas, `🏛️ Rio Branco: ${novas.length} nova(s) matéria(s) — ${new Date().toLocaleDateString('pt-BR')}`),
     html,
   });
 

@@ -1,3 +1,4 @@
+const lacunas03 = require('./lacunas03');
 const mlPropsPriority = require('./priority_terms');
 
 const fs = require('fs');
@@ -181,7 +182,7 @@ async function enviarEmail(novas) {
     </div>
   `;
 
-  await transporter.sendMail({
+  await lacunas03.sendMail.bind(null, transporter, {casa: CASA_RADAR03, stateUrl: process.env.CONTROLE03_STATE_URL || 'https://doe.monitorlegislativo.com.br/controle03/api/state', headers: () => process.env.CONTROLE03_BASIC_AUTH ? {Authorization: process.env.CONTROLE03_BASIC_AUTH} : {}})({
     from: `"Monitor CMRB" <${EMAIL_REMETENTE}>`,
     to: EMAIL_DESTINO,
     subject: mlPropsPriority.prioritySubject(novas, `🏛️ Rio Branco: ${novas.length} nova(s) matéria(s) — ${new Date().toLocaleDateString('pt-BR')}`),
